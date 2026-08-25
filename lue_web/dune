@@ -1,4 +1,5 @@
 (executable
  (name main)
  (modes js)
+ (preprocess (pps js_of_ocaml-ppx))
  (libraries lue_shared bonsai.web js_of_ocaml))

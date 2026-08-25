@@ -13,17 +13,17 @@ type ctx = {
 
 let txt s = Vdom.Node.text s
 let none_ = Vdom.Node.none
-let div ?(cls = "") children = Vdom.Node.div [ Vdom.Attr.class_ cls ] children
+let div ?(cls = "") children = Vdom.Node.div ~attrs:[ Vdom.Attr.class_ cls ] children
 let card ?(cls = "") children = div ~cls:("card " ^ cls) children
-let h1 s = Vdom.Node.h1 [] [ txt s ]
-let h2 s = Vdom.Node.h2 [] [ txt s ]
-let h3 s = Vdom.Node.h3 [] [ txt s ]
-let h4 s = Vdom.Node.h4 [] [ txt s ]
-let lede s = Vdom.Node.p [ Vdom.Attr.class_ "lede" ] [ txt s ]
+let h1 s = Vdom.Node.h1 ~attrs:[] [ txt s ]
+let h2 s = Vdom.Node.h2 ~attrs:[] [ txt s ]
+let h3 s = Vdom.Node.h3 ~attrs:[] [ txt s ]
+let h4 s = Vdom.Node.h4 ~attrs:[] [ txt s ]
+let lede s = Vdom.Node.p ~attrs:[ Vdom.Attr.class_ "lede" ] [ txt s ]
 
 let button ?(cls = "") ?(disabled = false) label on_click =
   Vdom.Node.button
-    [
+    ~attrs:[
       Vdom.Attr.class_ cls; Vdom.Attr.on_click (fun _ -> on_click);
       (if disabled then Vdom.Attr.disabled else Vdom.Attr.empty);
     ]
@@ -37,11 +37,11 @@ let brand =
 
 (* --------------------------- form helpers --------------------------- *)
 
-let field_label label = Vdom.Node.label [ Vdom.Attr.class_ "field-label" ] [ txt label ]
+let field_label label = Vdom.Node.label ~attrs:[ Vdom.Attr.class_ "field-label" ] [ txt label ]
 
 let text_input ~ctx ~key ~placeholder ?(kind = "text") () =
   Vdom.Node.input
-    [
+    ~attrs:[
       Vdom.Attr.type_ kind; Vdom.Attr.placeholder placeholder;
       Vdom.Attr.string_property "value" (S.field key ctx.state);
       Vdom.Attr.on_input (fun _ value -> ctx.update (S.set_field key value));
@@ -52,10 +52,10 @@ let labeled_input ~ctx ~key ~label ~placeholder ?(kind = "text") () =
   div ~cls:"field" [ field_label label; text_input ~ctx ~key ~placeholder ~kind () ]
 
 let checkbox ~ctx ~key ~label () =
-  Vdom.Node.label [ Vdom.Attr.class_ "check" ]
+  Vdom.Node.label ~attrs:[ Vdom.Attr.class_ "check" ]
     [
       Vdom.Node.input
-        [
+        ~attrs:[
           Vdom.Attr.type_ "checkbox"; Vdom.Attr.bool_property "checked" (S.is_checked key ctx.state);
           Vdom.Attr.on_click (fun _ -> ctx.update (S.toggle_checked key));
         ]
@@ -76,10 +76,10 @@ let banner ctx =
 
 let empty_state ~icon ~text_ ?action () =
   div ~cls:"empty-state"
-    (div ~cls:"icon" [ txt icon ] :: txt text_ :: (match action with Some a -> [ Vdom.Node.div [] [ a ] ] | None -> []))
+    (div ~cls:"icon" [ txt icon ] :: txt text_ :: (match action with Some a -> [ Vdom.Node.div ~attrs:[] [ a ] ] | None -> []))
 
 let stat label value =
-  div ~cls:"stat" [ Vdom.Node.div [ Vdom.Attr.class_ "value" ] [ txt value ]; Vdom.Node.div [ Vdom.Attr.class_ "label" ] [ txt label ] ]
+  div ~cls:"stat" [ Vdom.Node.div ~attrs:[ Vdom.Attr.class_ "value" ] [ txt value ]; Vdom.Node.div ~attrs:[ Vdom.Attr.class_ "label" ] [ txt label ] ]
 
 let role_of_string = function
   | "admin" -> P.Admin
@@ -97,17 +97,17 @@ let status_class = function
   | P.Resolved -> "status-resolved" | P.Denied -> "status-denied"
 
 let status_pill status =
-  Vdom.Node.span [ Vdom.Attr.class_ ("pill " ^ status_class status) ]
-    [ Vdom.Node.span [ Vdom.Attr.class_ ("dot " ^ status_class status) ] []; txt (status_label status) ]
+  Vdom.Node.span ~attrs:[ Vdom.Attr.class_ ("pill " ^ status_class status) ]
+    [ Vdom.Node.span ~attrs:[ Vdom.Attr.class_ ("dot " ^ status_class status) ] []; txt (status_label status) ]
 
 let admin_token ctx = Option.fold ctx.state.S.admin_identity ~none:"" ~some:(fun (a : P.admin_identity_view) -> a.ai_token)
 
 (* --------------------------- shared chrome --------------------------- *)
 
 let top_nav ctx ~right =
-  Vdom.Node.nav [ Vdom.Attr.class_ "top" ]
+  Vdom.Node.create "nav" ~attrs:[ Vdom.Attr.class_ "top" ]
     [
-      Vdom.Node.div [ Vdom.Attr.on_click (fun _ -> ctx.navigate "/") ] [ brand ];
+      Vdom.Node.div ~attrs:[ Vdom.Attr.on_click (fun _ -> ctx.navigate "/") ] [ brand ];
       div ~cls:"row" right;
     ]
 
@@ -154,7 +154,7 @@ let home_view ctx =
                   button ~cls:"secondary" "User sign in" (ctx.navigate "/user-login");
                   button ~cls:"secondary" "Browse public queues" (ctx.navigate "/public");
                 ];
-              Vdom.Node.hr [ Vdom.Attr.class_ "divider" ];
+              Vdom.Node.hr ~attrs:[ Vdom.Attr.class_ "divider" ] ();
               div ~cls:"field"
                 [
                   field_label "Have a queue code?";
@@ -226,16 +226,16 @@ let public_queues_view ctx =
                 (List.map
                    (fun (q : P.queue_summary) ->
                      Vdom.Node.button
-                       [ Vdom.Attr.class_ "queue-item"; Vdom.Attr.on_click (fun _ -> ctx.navigate ("/queue/" ^ q.id)) ]
+                       ~attrs:[ Vdom.Attr.class_ "queue-item"; Vdom.Attr.on_click (fun _ -> ctx.navigate ("/queue/" ^ q.id)) ]
                        [
                          div ~cls:"row between"
                            [
-                             div []
+                             div
                                [
                                  div ~cls:"name" [ txt q.name ];
                                  div ~cls:"meta" [ txt (Printf.sprintf "code %s" q.code) ];
                                ];
-                             Vdom.Node.span [ Vdom.Attr.class_ "pill" ] [ txt (Printf.sprintf "%d waiting" q.waiting_count) ];
+                             Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "pill" ] [ txt (Printf.sprintf "%d waiting" q.waiting_count) ];
                            ];
                        ])
                    queues));
@@ -251,9 +251,9 @@ let field_row ctx (f : P.queue_field) =
       (if f.options = [] then text_input ~ctx ~key:("qf_" ^ f.key) ~placeholder:f.label ()
        else
          Vdom.Node.select
-           [ Vdom.Attr.on_change (fun _ value -> ctx.update (S.set_field ("qf_" ^ f.key) value)) ]
-           (Vdom.Node.option [] [ txt "Select…" ]
-           :: List.map (fun opt -> Vdom.Node.option [ Vdom.Attr.value opt ] [ txt opt ]) f.options));
+           ~attrs:[ Vdom.Attr.on_change (fun _ value -> ctx.update (S.set_field ("qf_" ^ f.key) value)) ]
+           (Vdom.Node.option ~attrs:[] [ txt "Select…" ]
+           :: List.map (fun opt -> Vdom.Node.option ~attrs:[ Vdom.Attr.value opt ] [ txt opt ]) f.options));
     ]
 
 let queue_page_view ctx queue_id =
@@ -274,10 +274,10 @@ let queue_page_view ctx queue_id =
                 [
                   div ~cls:"row between"
                     [
-                      div [] [ h2 q.uq_name; Vdom.Node.span [ Vdom.Attr.class_ "mono muted" ] [ txt ("Code " ^ q.uq_code) ] ];
+                      div [ h2 q.uq_name; Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "mono muted" ] [ txt ("Code " ^ q.uq_code) ] ];
                       stat "Waiting" (string_of_int q.uq_waiting_count);
                     ];
-                  Vdom.Node.hr [ Vdom.Attr.class_ "divider" ];
+                  Vdom.Node.hr ~attrs:[ Vdom.Attr.class_ "divider" ] ();
                   (match your_entry with
                   | Some entry ->
                       div ~cls:"stack"
@@ -335,22 +335,22 @@ let entry_action_buttons ctx (e : P.admin_entry_view) =
         ]
   | P.Resolved | P.Denied ->
       button ~cls:"small secondary" "Reopen" (ctx.dispatch (P.Reopen_entry { admin_token = token; entry_id = e.ae_id }))
-  | P.Left -> Vdom.Node.span [ Vdom.Attr.class_ "faint" ] [ txt "—" ]
+  | P.Left -> Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "faint" ] [ txt "—" ]
 
 let entry_row ctx (e : P.admin_entry_view) =
-  Vdom.Node.tr []
+  Vdom.Node.tr ~attrs:[]
     [
-      Vdom.Node.td []
+      Vdom.Node.td ~attrs:[]
         [
           div ~cls:"row"
-            [ txt e.ae_requester_label; (if e.ae_is_guest then Vdom.Node.span [ Vdom.Attr.class_ "pill guest" ] [ txt "guest" ] else none_) ];
+            [ txt e.ae_requester_label; (if e.ae_is_guest then Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "pill guest" ] [ txt "guest" ] else none_) ];
         ];
-      Vdom.Node.td [] [ status_pill e.ae_status ];
-      Vdom.Node.td [] [ Vdom.Node.span [ Vdom.Attr.class_ "muted" ] [ txt (Option.value e.ae_claimed_by ~default:"—") ] ];
-      Vdom.Node.td []
-        [ Vdom.Node.span [ Vdom.Attr.class_ "faint" ] [ txt (String.concat " · " (List.map (fun (k, v) -> k ^ ": " ^ v) e.ae_values)) ] ];
-      Vdom.Node.td [] [ Vdom.Node.span [ Vdom.Attr.class_ "faint" ] [ txt e.ae_submitted_at ] ];
-      Vdom.Node.td ~key:e.ae_id [] [ entry_action_buttons ctx e ];
+      Vdom.Node.td ~attrs:[] [ status_pill e.ae_status ];
+      Vdom.Node.td ~attrs:[] [ Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "muted" ] [ txt (Option.value e.ae_claimed_by ~default:"—") ] ];
+      Vdom.Node.td ~attrs:[]
+        [ Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "faint" ] [ txt (String.concat " · " (List.map (fun (k, v) -> k ^ ": " ^ v) e.ae_values)) ] ];
+      Vdom.Node.td ~attrs:[] [ Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "faint" ] [ txt e.ae_submitted_at ] ];
+      Vdom.Node.td ~key:e.ae_id ~attrs:[] [ entry_action_buttons ctx e ];
     ]
 
 let entries_table ctx entries =
@@ -359,14 +359,14 @@ let entries_table ctx entries =
   | entries ->
       div ~cls:"table-wrap"
         [
-          Vdom.Node.table []
+          Vdom.Node.table ~attrs:[]
             [
-              Vdom.Node.thead []
+              Vdom.Node.thead ~attrs:[]
                 [
-                  Vdom.Node.tr []
-                    (List.map (fun h -> Vdom.Node.th [] [ txt h ]) [ "Requester"; "Status"; "Claimed by"; "Values"; "Submitted"; "" ]);
+                  Vdom.Node.tr ~attrs:[]
+                    (List.map (fun h -> Vdom.Node.th ~attrs:[] [ txt h ]) [ "Requester"; "Status"; "Claimed by"; "Values"; "Submitted"; "" ]);
                 ];
-              Vdom.Node.tbody [] (List.map (entry_row ctx) entries);
+              Vdom.Node.tbody ~attrs:[] (List.map (entry_row ctx) entries);
             ];
         ]
 
@@ -383,13 +383,13 @@ let create_queue_form ctx =
             [
               field_label "Fields";
               Vdom.Node.textarea
-                [
+                ~attrs:[
                   Vdom.Attr.string_property "value" (S.field "cq_fields" ctx.state);
                   Vdom.Attr.placeholder "Name|1|\nQuestion topic|0|Homework,Exam,Other";
                   Vdom.Attr.on_input (fun _ v -> ctx.update (S.set_field "cq_fields" v));
                 ]
                 [];
-              Vdom.Node.div [ Vdom.Attr.class_ "hint" ] [ txt "One per line: label | required (1/0) | comma,separated,options (optional)" ];
+              Vdom.Node.div ~attrs:[ Vdom.Attr.class_ "hint" ] [ txt "One per line: label | required (1/0) | comma,separated,options (optional)" ];
             ];
           button "Create queue"
             (let lines = String.split_on_char '\n' (S.field "cq_fields" ctx.state) in
@@ -426,7 +426,7 @@ let selected_queue_panel ctx (q : P.admin_queue_view) =
     [
       div ~cls:"row between"
         [
-          div [] [ h3 q.sel_summary.name; Vdom.Node.span [ Vdom.Attr.class_ "mono muted" ] [ txt ("Code " ^ q.sel_summary.code) ] ];
+          div [ h3 q.sel_summary.name; Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "mono muted" ] [ txt ("Code " ^ q.sel_summary.code) ] ];
           div ~cls:"row"
             [
               stat "Waiting" (string_of_int q.sel_summary.waiting_count);
@@ -434,7 +434,7 @@ let selected_queue_panel ctx (q : P.admin_queue_view) =
             ];
         ];
       div ~cls:"row end" [ button ~cls:"danger small" "Close queue" (ctx.dispatch (P.Close_queue { admin_token = admin_token ctx; queue_id = q.sel_summary.id })) ];
-      Vdom.Node.hr [ Vdom.Attr.class_ "divider" ];
+      Vdom.Node.hr ~attrs:[ Vdom.Attr.class_ "divider" ] ();
       entries_table ctx q.sel_entries;
     ]
 
@@ -447,28 +447,28 @@ let accounts_panel ctx (state : P.admin_state_view) =
       | accounts ->
           div ~cls:"table-wrap"
             [
-              Vdom.Node.table []
+              Vdom.Node.table ~attrs:[]
                 [
-                  Vdom.Node.tbody []
+                  Vdom.Node.tbody ~attrs:[]
                     (List.map
                        (fun (a : P.account_view) ->
-                         Vdom.Node.tr []
+                         Vdom.Node.tr ~attrs:[]
                            [
-                             Vdom.Node.td [] [ txt a.name ];
-                             Vdom.Node.td [] [ Vdom.Node.span [ Vdom.Attr.class_ "muted" ] [ txt a.email ] ];
-                             Vdom.Node.td [] [ Vdom.Node.span [ Vdom.Attr.class_ "pill role" ] [ txt (role_to_label a.role) ] ];
-                             Vdom.Node.td []
+                             Vdom.Node.td ~attrs:[] [ txt a.name ];
+                             Vdom.Node.td ~attrs:[] [ Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "muted" ] [ txt a.email ] ];
+                             Vdom.Node.td ~attrs:[] [ Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "pill role" ] [ txt (role_to_label a.role) ] ];
+                             Vdom.Node.td ~attrs:[]
                                [
                                  (if a.id <> state.as_admin.account_id then
                                     button ~cls:"small danger"
                                       "Delete" (ctx.dispatch (P.Delete_account { admin_token = admin_token ctx; account_id = a.id }))
-                                  else Vdom.Node.span [ Vdom.Attr.class_ "faint" ] [ txt "you" ]);
+                                  else Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "faint" ] [ txt "you" ]);
                                ];
                            ])
                        accounts);
                 ];
             ]);
-      Vdom.Node.hr [ Vdom.Attr.class_ "divider" ];
+      Vdom.Node.hr ~attrs:[ Vdom.Attr.class_ "divider" ] ();
       h4 "Add account";
       div ~cls:"grid-2"
         [
@@ -479,10 +479,10 @@ let accounts_panel ctx (state : P.admin_state_view) =
             [
               field_label "Role";
               Vdom.Node.select
-                [ Vdom.Attr.on_change (fun _ v -> ctx.update (S.set_field "acc_role" v)) ]
+                ~attrs:[ Vdom.Attr.on_change (fun _ v -> ctx.update (S.set_field "acc_role" v)) ]
                 [
-                  Vdom.Node.option [ Vdom.Attr.value "user" ] [ txt "User" ];
-                  Vdom.Node.option [ Vdom.Attr.value "admin" ] [ txt "Admin" ];
+                  Vdom.Node.option ~attrs:[ Vdom.Attr.value "user" ] [ txt "User" ];
+                  Vdom.Node.option ~attrs:[ Vdom.Attr.value "admin" ] [ txt "Admin" ];
                 ];
             ];
         ];
@@ -533,8 +533,8 @@ let archived_panel (state : P.admin_state_view) =
                (fun (a : P.archived_queue_list_item) ->
                  div ~cls:"row between"
                    [
-                     div [] [ Vdom.Node.strong [] [ txt a.arc_summary.name ]; Vdom.Node.div [ Vdom.Attr.class_ "faint" ] [ txt (Printf.sprintf "closed %s by %s" a.arc_closed_at a.arc_closed_by_name) ] ];
-                     Vdom.Node.span [ Vdom.Attr.class_ "pill" ] [ txt (Printf.sprintf "%d entries" a.arc_entry_count) ];
+                     div [ Vdom.Node.strong ~attrs:[] [ txt a.arc_summary.name ]; Vdom.Node.div ~attrs:[ Vdom.Attr.class_ "faint" ] [ txt (Printf.sprintf "closed %s by %s" a.arc_closed_at a.arc_closed_by_name) ] ];
+                     Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "pill" ] [ txt (Printf.sprintf "%d entries" a.arc_entry_count) ];
                    ])
                archived));
     ]
@@ -553,7 +553,7 @@ let queue_sidebar ctx (state : P.admin_state_view) =
                    match state.as_selected_queue with Some s -> s.sel_summary.id = q.aq_summary.id | None -> false
                  in
                  Vdom.Node.button
-                   [
+                   ~attrs:[
                      Vdom.Attr.class_ ("queue-item" ^ if active then " active" else "");
                      Vdom.Attr.on_click (fun _ ->
                          ctx.dispatch (P.Subscribe_admin { admin_token = admin_token ctx; selected_queue_id = Some q.aq_summary.id }));
@@ -561,8 +561,8 @@ let queue_sidebar ctx (state : P.admin_state_view) =
                    [
                      div ~cls:"row between"
                        [
-                         div [] [ div ~cls:"name" [ txt q.aq_summary.name ]; div ~cls:"meta" [ txt (q.aq_owner_name ^ " · " ^ q.aq_summary.code) ] ];
-                         Vdom.Node.span [ Vdom.Attr.class_ "pill status-pending" ] [ txt (string_of_int q.aq_summary.waiting_count) ];
+                         div [ div ~cls:"name" [ txt q.aq_summary.name ]; div ~cls:"meta" [ txt (q.aq_owner_name ^ " · " ^ q.aq_summary.code) ] ];
+                         Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "pill status-pending" ] [ txt (string_of_int q.aq_summary.waiting_count) ];
                        ];
                    ])
                queues));
@@ -577,10 +577,10 @@ let admin_dashboard ctx =
           top_nav ctx
             ~right:
               [
-                Vdom.Node.span [ Vdom.Attr.class_ "who" ]
+                Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "who" ]
                   [
-                    txt "Signed in as "; Vdom.Node.strong [] [ txt state.as_admin.ai_name ];
-                    (if state.as_admin.is_super_admin then Vdom.Node.span [ Vdom.Attr.class_ "pill role" ] [ txt "Super admin" ] else none_);
+                    txt "Signed in as "; Vdom.Node.strong ~attrs:[] [ txt state.as_admin.ai_name ];
+                    (if state.as_admin.is_super_admin then Vdom.Node.span ~attrs:[ Vdom.Attr.class_ "pill role" ] [ txt "Super admin" ] else none_);
                   ];
                 button ~cls:"ghost" "Sign out"
                   (ctx.update (fun s ->

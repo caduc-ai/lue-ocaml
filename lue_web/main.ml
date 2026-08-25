@@ -1,3 +1,4 @@
+module App_view = View
 open Bonsai_web
 module P = Lue_shared.Protocol
 module S = State
@@ -50,16 +51,16 @@ let handle_incoming (raw : string) =
       | P.Setup_state { needs_setup; _ } ->
           if not needs_setup then
             (* attempt silent resume from saved tokens once we know setup is done *)
-            match S.saved_admin_token () with
+            (match S.saved_admin_token () with
             | Some token -> dispatch_now (P.Subscribe_admin { admin_token = token; selected_queue_id = None })
-            | None -> ()
+            | None -> ())
       | _ -> ())
   | exception _ -> ()
 
-let ctx_value : View.ctx Bonsai.Value.t =
-  Bonsai.Value.map (Bonsai.Var.value state_var) ~f:(fun state -> { View.state; update; dispatch; navigate })
+let ctx_value : App_view.ctx Bonsai.Value.t =
+  Bonsai.Value.map (Bonsai.Var.value state_var) ~f:(fun state -> { App_view.state; update; dispatch; navigate })
 
-let app : Vdom.Node.t Bonsai.Computation.t = Bonsai.read (Bonsai.Value.map ctx_value ~f:View.render)
+let app : Vdom.Node.t Bonsai.Computation.t = Bonsai.read (Bonsai.Value.map ctx_value ~f:App_view.render)
 
 let () =
   Ws_client.on_hash_change route_to;

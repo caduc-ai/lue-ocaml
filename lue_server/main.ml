@@ -20,11 +20,32 @@ type connection = {
 
 let connections : connection list ref = ref []
 
+(* A slow or half-dead client (browser tab closed without a clean
+   WebSocket close, network drop, etc.) must never be able to stall
+   [Dream.send] indefinitely and freeze the single-threaded Lwt scheduler
+   for every other connection. Guard every send with a timeout. *)
+(* KNOWN UPSTREAM ISSUE: writing to a WebSocket whose peer has already gone
+   away (tab closed, network drop, ...) can make gluten-lwt/httpun-ws spin
+   at ~100% CPU retrying a writev that keeps returning EPIPE, instead of
+   raising -- this is an open bug in dream's TCP layer (gluten-lwt does not
+   check the writev result), not something fixable from here:
+   https://github.com/camlworks/dream/issues/411 (and the older
+   https://github.com/aantron/dream/issues/230). [Lwt.pick] with a timeout
+   cannot rescue us because the runaway loop never yields back to the Lwt
+   scheduler for the timeout callback to run -- only a supervising process
+   that restarts the server on an unresponsive health check (see
+   [scripts/supervise.sh]) can recover from it today. We still keep the
+   timeout wrapper below as defense-in-depth against ordinary slow-client
+   stalls that behave better (i.e. actually block on I/O). *)
 let send conn (msg : P.server_message) =
-  Lwt.catch (fun () -> Dream.send conn.ws (P.encode_server msg)) (fun _ -> Lwt.return_unit)
+  Lwt.catch
+    (fun () -> Lwt.pick [ Dream.send conn.ws (P.encode_server msg); Lwt_unix.sleep 5.0 ])
+    (fun _ -> Lwt.return_unit)
 
 let broadcast queue_id =
-  Lwt_list.iter_s
+  (* Fan out concurrently rather than sequentially so one slow connection
+     cannot delay state delivery to every other connection. *)
+  Lwt_list.iter_p
     (fun conn ->
       (match conn.admin_token with
       | None -> Lwt.return_unit
@@ -274,5 +295,6 @@ let () =
        [
          Dream.get "/health" (fun _ -> Dream.respond "ok");
          Dream.get "/ws" ws_handler;
+         Dream.get "/" (Dream.from_filesystem "lue_web/dist" "index.html");
          Dream.get "/**" (Dream.static "lue_web/dist");
        ]
