@@ -1,0 +1,4 @@
+(executable
+ (name main)
+ (modes js)
+ (libraries lue_shared bonsai.web js_of_ocaml))

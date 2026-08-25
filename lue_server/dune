@@ -1,0 +1,3 @@
+(executable
+ (name main)
+ (libraries lue_shared dream yojson unix lwt))

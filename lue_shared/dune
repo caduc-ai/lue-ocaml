@@ -1,0 +1,3 @@
+(library
+ (name lue_shared)
+ (libraries yojson))
