@@ -943,7 +943,7 @@ let admin_state admin_token selected_queue_id : P.admin_state_view option =
                 else acc)
               db.accounts []
           in
-          let accounts = List.sort (fun a b -> compare a.P.email b.P.email) accounts in
+          let accounts = List.sort (fun (a : P.account_view) (b : P.account_view) -> compare a.email b.email) accounts in
           let groups =
             Hashtbl.fold
               (fun _ g acc ->
@@ -1200,7 +1200,6 @@ let load_from_disk path =
     let n = in_channel_length ic in
     let contents = really_input_string ic n in
     close_in ic;
-    let open Yojson.Safe.Util in
     let j = Yojson.Safe.from_string contents in
     (match P.member_opt "site_settings" j with
     | Some s when s <> `Null -> db.site_settings <- site_settings_of_json_full s
