@@ -18,15 +18,25 @@ sharing protocol types via a `shared` crate. This port keeps the same shape:
   accounts, site settings, archived queues), a queue join/status page, and a public-queues
   listing, mirroring `crates/web`.
 
-## Important: this was authored without a working OCaml toolchain
+## Status: it builds and runs
 
-The sandbox this port was written in has **no `opam`/`dune`/`ocaml` installed**, so none of this
-code has been compiled or run. It was written carefully against the documented/common APIs of
-Dream, Yojson, and Bonsai, but you should expect to fix a handful of small API-signature
-mismatches (argument order/labels, module paths) when you first `dune build` against your pinned
-package versions — especially in `lue_web/view.ml` and `lue_web/main.ml`, since `Bonsai`/
-`virtual_dom` APIs have shifted across versions more than `Dream`/`Yojson` have. Treat this as a
-complete, structurally-faithful first draft rather than a tested build.
+This has now actually been compiled and exercised end-to-end (setup -> admin login -> create
+queue -> guest join -> claim -> resolve, verified over raw WebSocket frames with correct state
+broadcast to every subscribed connection at each step), on `ocaml-base-compiler.5.2.0` /
+`dune.3.24.2` / `dream.1.0.0~alpha8` / `bonsai.v0.16.0` / `js_of_ocaml.5.9.1`. The sandbox this
+was built in has no root access, so system libraries (`m4`, `pkgconf`, `libgmp`, `libev`,
+`libffi`, `zlib`) were extracted from `.deb` packages into `~/local` rather than installed via
+`apt`; see the opam install commands below for the package list, and adjust for a normal
+root-capable machine (just `apt install m4 pkg-config libgmp-dev libev-dev libffi-dev
+zlib1g-dev` first).
+
+**Known upstream issue:** writing to a WebSocket whose peer has already disconnected can make
+dream's TCP layer (`gluten-lwt`) spin at ~100% CPU retrying a `writev()` that keeps returning
+`EPIPE` instead of raising, wedging the whole single-threaded server
+(<https://github.com/camlworks/dream/issues/411>, still open/unreleased as of writing). This
+isn't fixable from application code. `scripts/supervise.sh` works around it by restarting the
+server whenever `/health` stops responding (recovers within ~5s in testing); run the server
+through that script rather than the bare binary.
 
 The frontend intentionally uses a simple architecture to minimize API risk: all application state
 lives in one `Bonsai.Var.t` (`lue_web/state.ml`), updated either by incoming WebSocket messages or
@@ -54,23 +64,19 @@ components via `let%sub`, which we avoided here to reduce the ppx/API surface we
 - Weekly/one-time queue scheduling (`opens_at`, `weekly_schedule`) is implemented in the backend
   store exactly as in the Rust version, but there's no dedicated scheduler UI in the frontend yet.
 
-## Building (once you have opam)
+## Building
 
 ```bash
-opam switch create . 5.1.1   # or reuse an existing >=4.14 switch
-opam install dune dream yojson bonsai js_of_ocaml js_of_ocaml-ppx core
+# System packages (Debian/Ubuntu names shown; root machine):
+sudo apt install m4 pkg-config libgmp-dev libev-dev libffi-dev zlib1g-dev
+
+opam switch create . 5.2.0   # or reuse an existing >=4.14 switch
+opam install dune yojson dream js_of_ocaml-compiler js_of_ocaml js_of_ocaml-ppx bonsai
 dune build
 ```
 
-Run the backend:
-
-```bash
-dune exec lue_server/main.exe
-# or: DATA_PATH=data/store.json SERVER_ADDR=127.0.0.1:3000 dune exec lue_server/main.exe
-```
-
-Build the frontend to static JS, then either serve it with any static file server or let the
-backend serve it (it already falls back to `lue_web/dist` for unmatched GET routes):
+Build the frontend to static JS and assemble `lue_web/dist` (the backend falls back to serving
+that directory for `/` and any other unmatched GET route):
 
 ```bash
 dune build lue_web/main.bc.js
@@ -79,7 +85,19 @@ cp _build/default/lue_web/main.bc.js lue_web/dist/main.bc.js
 cp lue_web/index.html lue_web/style.css lue_web/dist/
 ```
 
-Then open `http://127.0.0.1:3000/`.
+Run the backend through the supervisor (recommended, see the known upstream issue above) or
+directly:
+
+```bash
+DATA_PATH=data/store.json SERVER_ADDR=0.0.0.0:3000 scripts/supervise.sh
+# or, without the auto-restart safety net:
+DATA_PATH=data/store.json SERVER_ADDR=0.0.0.0:3000 dune exec lue_server/main.exe
+```
+
+Then open `http://127.0.0.1:3000/` (or whatever host/port you bound `SERVER_ADDR` to).
+
+First visit shows the initial-setup form (create the first super admin), then the normal
+sign-in flow.
 
 ## Protocol
 
